@@ -23,7 +23,11 @@ def downloadVideo(animeName,episode,quality,queue):
    url = 'https://gogoanime.sh/'+animeName+'-'+'episode-'+str(episode)
    hdr = {'User-Agent': 'Mozilla/5.0'}
    req = Request(url,headers=hdr)
-   page = urlopen(req)
+   page = None
+   try:
+      page = urlopen(req)
+   except:
+      return False
    soup = BeautifulSoup(page,'lxml')
 
    downloadLinkContainer = soup.findAll('div',{'class':'favorites_book'})
@@ -37,7 +41,11 @@ def downloadVideo(animeName,episode,quality,queue):
    downloadPageLink = aContainer['href']
    
    req = Request(downloadPageLink,headers=hdr)
-   page = urlopen(req)
+   page = None
+   try:
+      page = urlopen(req)
+   except:
+      return False
    soup = BeautifulSoup(page,'lxml')
 
    container = soup.findAll('div',{'class':'mirror_link'})
@@ -144,7 +152,7 @@ def downloadVideo(animeName,episode,quality,queue):
    
    #download
    with progessBar(unit="B",unit_scale=True,miniters=1,desc=url.split('/')[-1]) as t:
-            urllib.request.urlretrieve(result_links[idx],fullFileName,reporthook=t.update_to)   
+      urllib.request.urlretrieve(result_links[idx],fullFileName,reporthook=t.update_to)   
 
    return True
 
@@ -163,6 +171,10 @@ def searchAnimeSuggestions(animeName):
    ulContainer = listContainer[0].findAll('ul')
    liContainer = ulContainer[0].findAll('li')
 
+   if len(liContainer) == 0:
+      print("Could not even find suggestions :(")
+      return False
+
    print("\n Could not find anime .. so giving suggestions ..")
    print("")
    count = 1
@@ -175,6 +187,56 @@ def searchAnimeSuggestions(animeName):
 
       print(str(count) + " : " + title + "   [ " + rawSEOname + " ]")
       count += 1
+   return True
+
+#Get Anime Info
+def getAnimeInfo(animeName):
+   url = 'https://gogoanime.sh//category/' + animeName
+   hdr = {'User-Agent': 'Mozilla/5.0'}
+   req = Request(url,headers=hdr)
+   page = None
+   try:
+      page = urlopen(req)
+   except:
+      return False
+   soup = BeautifulSoup(page,'lxml')
+
+   divContainer = soup.findAll('div',{'class':'anime_video_body'})
+
+   if len(divContainer) == 0:
+      return False
+
+   #Retrieving episode count
+   
+   ulContainer = divContainer[0].findAll('ul')   
+   totalEpisodeCount = 0
+   aContainer = []
+   for li in ulContainer:
+      aContainer = li.findAll('a') #[0]['ep_end']   
+   totalEpisodeCount = aContainer[len(aContainer)-1]['ep_end']
+   
+   #Retriving Other anime info such as type,genre,releasedate,status
+
+   divContainer = soup.findAll('div',{'class':'anime_info_body_bg'})
+   pContainer = divContainer[0].findAll('p',{'class','type'}) 
+
+   animeType = pContainer[0].findAll('a')[0]['title'] #type
+   releasedate = pContainer[3].text #release date
+   status = pContainer[4].findAll('a')[0].text #status
+
+   #genres
+   genres = []
+   gList = pContainer[2].findAll('a')
+   for g in gList:
+      genres.append(g['title'])
+   
+   #printing
+
+   print("Anime: " + animeName + "\nTotal Episodes: " + totalEpisodeCount + "\nType: " + animeType + " \n" + releasedate + "\nStatus: " + status)   
+
+   return True
+
+   #Retrieving episode count here
 
 #@NOTE: animeName should contain - instead of space
 
@@ -200,6 +262,7 @@ def multiDownload(animeName,start,stop,quality):
 
 #1. python filteredanime [anime] [startEpisode] [stopEpisode] [quality] //BULK
 #2. python filteredanime [anime] [episode] [quality] //SINGLE EPISODE
+#3. python filteredanime [anime] info // Display anime info
 
 #quality modes 
 
@@ -231,6 +294,12 @@ if __name__ == '__main__':
          makeFolderIfNotCreate(sys.argv[1])
          if downloadVideo(sys.argv[1],sys.argv[2],sys.argv[3],None) == False:
             os.rmdir(sys.argv[1]) #remove directory
+            searchAnimeSuggestions(sys.argv[1])
+   elif argLength == 2:
+      if(sys.argv[2] != 'info'):
+         print('invalid arguments: check params')
+      else:
+         if getAnimeInfo(sys.argv[1]) == False:
             searchAnimeSuggestions(sys.argv[1])
    else:
       print('invalid arguments: check params')
