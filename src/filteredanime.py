@@ -8,21 +8,14 @@ from urllib.parse import parse_qs
 from threading import Thread
 from tqdm import tqdm
 
-#Get episode count
-#http Error checking
-
-#argument error checking
-#quality option
-#automatic priority wise quality control
-#folder creation
-
 class progessBar(tqdm):
     def update_to(self, b=1, bsize=1, tsize=None):
         if tsize is not None:
             self.total = tsize
         self.update(b * bsize - self.n)
 
-def downloadVideo(animeName,episode,quality):
+#download videos
+def downloadVideo(animeName,episode,quality,queue):
 
    result_name = []
    result_links = []
@@ -34,6 +27,10 @@ def downloadVideo(animeName,episode,quality):
    soup = BeautifulSoup(page,'lxml')
 
    downloadLinkContainer = soup.findAll('div',{'class':'favorites_book'})
+
+   if len(downloadLinkContainer) == 0:
+      return False
+
    ulContainer = downloadLinkContainer[0].findAll('ul')
    liContainer = ulContainer[0].findAll('li',{'class':'dowloads'})
    aContainer = liContainer[0].find('a')
@@ -140,20 +137,44 @@ def downloadVideo(animeName,episode,quality):
             
          else:
             print('no quality avail')
+
+   #put this in queue to track thread related stuff
+   if queue is not None:
+      queue.put(result_links[idx])
    
    #download
    with progessBar(unit="B",unit_scale=True,miniters=1,desc=url.split('/')[-1]) as t:
             urllib.request.urlretrieve(result_links[idx],fullFileName,reporthook=t.update_to)   
 
-def isThere(animeName,quality,idx,fileName,fullFileName,resultName):
-   if quality in resultName:
-      idx = resultName.index(quality)
-      quality = quality.replace('\n','')
-      fileName += " " + quality + ".mp4"
-      fullFileName = os.path.join(animeName,fileName)
-      #print(fullFileName)
-      return True
-   return False
+   return True
+
+#Give suggestions based on animename
+def searchAnimeSuggestions(animeName):
+
+   animeName = animeName.replace('-','%20')
+   url = 'https://gogoanime.sh//search.html?keyword=' + animeName
+
+   hdr = {'User-Agent': 'Mozilla/5.0'}
+   req = Request(url,headers=hdr)
+   page = urlopen(req)
+   soup = BeautifulSoup(page,'lxml')
+
+   listContainer = soup.findAll('div',{'class':'last_episodes'})
+   ulContainer = listContainer[0].findAll('ul')
+   liContainer = ulContainer[0].findAll('li')
+
+   print("\n Could not find anime .. so giving suggestions ..")
+   print("")
+   count = 1
+   for li in liContainer:
+      pContainer = li.findAll('p')
+      rawSEOname = pContainer[0].find('a')['href']
+      title = pContainer[0].find('a')['title']
+
+      rawSEOname = rawSEOname.replace('/category/','')
+
+      print(str(count) + " : " + title + "   [ " + rawSEOname + " ]")
+      count += 1
 
 #@NOTE: animeName should contain - instead of space
 
@@ -163,17 +184,22 @@ def isThere(animeName,quality,idx,fileName,fullFileName,resultName):
 def multiDownload(animeName,start,stop,quality):
    all_threads = []
    _queue = queue.Queue()
-   if start == stop:
-      downloadVideo(animeName,start)
-   else:
-      for i in range(start,stop+1):
-         t = Thread(target=downloadVideo,args=(animeName,i,quality))
-         t.start()
-         all_threads.append(t)
+   for i in range(start,stop+1):
+      t = Thread(target=downloadVideo,args=(animeName,i,quality,_queue))
+      t.start()
+      all_threads.append(t)
 
+   #means there was an error in the function
+   #that the queue is empty
+   if _queue.empty():
+      t.join()
+      return False
+   return True
 
-#python filteredanime [anime] [startEpisode] [stopEpisode] [quality] //BULK
-#python filteredanime [anime] [episode] [quality] //SINGLE EPISODE
+#COMMANDS
+
+#1. python filteredanime [anime] [startEpisode] [stopEpisode] [quality] //BULK
+#2. python filteredanime [anime] [episode] [quality] //SINGLE EPISODE
 
 #quality modes 
 
@@ -195,12 +221,16 @@ if __name__ == '__main__':
          print('invalid arguments: check params')
       else:
          makeFolderIfNotCreate(sys.argv[1])
-         multiDownload(sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),sys.argv[4])
+         if multiDownload(sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),sys.argv[4]) == False:
+            os.rmdir(sys.argv[1]) #remove directory
+            searchAnimeSuggestions(sys.argv[1]) #search for suggestions
    elif argLength == 3:
       if ((sys.argv[3] != 'l') and (sys.argv[3] != 'm') and (sys.argv[3] != 'h')) or (sys.argv[2].isdigit() == False):
          print('invalid arguments: check params')
       else:
          makeFolderIfNotCreate(sys.argv[1])
-         downloadVideo(sys.argv[1],sys.argv[2],sys.argv[3])
+         if downloadVideo(sys.argv[1],sys.argv[2],sys.argv[3],None) == False:
+            os.rmdir(sys.argv[1]) #remove directory
+            searchAnimeSuggestions(sys.argv[1])
    else:
       print('invalid arguments: check params')
