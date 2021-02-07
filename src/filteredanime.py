@@ -1,3 +1,22 @@
+
+#COMMANDS [KINDLY SEARCH ANIME USING SEO NAME]
+'''
+   TO FIND SEO NAME KINDLY TYPE ANIME NAME AS IS AND THEN IN SUGGESTION 
+   CHECK THE RELATIVE NAME IN PINK COLOR .. THATS THE SEO NAME
+'''
+
+#1. python filteredanime [anime] [startEpisode] [stopEpisode] [quality] //BULK
+#2. python filteredanime [anime] [episode] [quality] //SINGLE EPISODE
+#3. python filteredanime [anime] info // Display anime info
+
+#quality modes 
+
+  # l => low => 360p
+  # m => medium => 480p
+  # h => high => 720p
+
+#Example : python filteredanime gintama 245 250 h => will download anime gintama from episode 245 to 250 in HIGH [720P] 
+
 import sys,re,webbrowser,json,requests,os
 import urllib
 import queue
@@ -7,6 +26,7 @@ from urllib.request import Request, urlopen
 from urllib.parse import parse_qs
 from threading import Thread
 from tqdm import tqdm
+from colorama import init , Fore , Style , Back
 
 class progessBar(tqdm):
     def update_to(self, b=1, bsize=1, tsize=None):
@@ -16,7 +36,6 @@ class progessBar(tqdm):
 
 #download videos
 def downloadVideo(animeName,episode,quality,queue):
-
    result_name = []
    result_links = []
 
@@ -158,10 +177,8 @@ def downloadVideo(animeName,episode,quality,queue):
 
 #Give suggestions based on animename
 def searchAnimeSuggestions(animeName):
-
    animeName = animeName.replace('-','%20')
    url = 'https://gogoanime.sh//search.html?keyword=' + animeName
-
    hdr = {'User-Agent': 'Mozilla/5.0'}
    req = Request(url,headers=hdr)
    page = urlopen(req)
@@ -172,20 +189,18 @@ def searchAnimeSuggestions(animeName):
    liContainer = ulContainer[0].findAll('li')
 
    if len(liContainer) == 0:
-      print("Could not even find suggestions :(")
+      print(Fore.RED + "(ERROR) "+ Style.RESET_ALL + "Could not even find suggestions :(")
       return False
 
-   print("\n Could not find anime .. so giving suggestions ..")
+   print(Back.MAGENTA + "\n Could not find anime .. so giving suggestions .." + Style.RESET_ALL)
    print("")
    count = 1
    for li in liContainer:
       pContainer = li.findAll('p')
       rawSEOname = pContainer[0].find('a')['href']
       title = pContainer[0].find('a')['title']
-
       rawSEOname = rawSEOname.replace('/category/','')
-
-      print(str(count) + " : " + title + "   [ " + rawSEOname + " ]")
+      print(str(count) + " : " + title + "   [ " + Fore.MAGENTA + rawSEOname + Style.RESET_ALL+" ]")
       count += 1
    return True
 
@@ -207,7 +222,6 @@ def getAnimeInfo(animeName):
       return False
 
    #Retrieving episode count
-   
    ulContainer = divContainer[0].findAll('ul')   
    totalEpisodeCount = 0
    aContainer = []
@@ -216,7 +230,6 @@ def getAnimeInfo(animeName):
    totalEpisodeCount = aContainer[len(aContainer)-1]['ep_end']
    
    #Retriving Other anime info such as type,genre,releasedate,status
-
    divContainer = soup.findAll('div',{'class':'anime_info_body_bg'})
    pContainer = divContainer[0].findAll('p',{'class','type'}) 
 
@@ -231,12 +244,9 @@ def getAnimeInfo(animeName):
       genres.append(g['title'])
    
    #printing
-
-   print("Anime: " + animeName + "\nTotal Episodes: " + totalEpisodeCount + "\nType: " + animeType + " \n" + releasedate + "\nStatus: " + status)   
+   print(Fore.YELLOW + "Anime: "+Style.RESET_ALL + animeName + Fore.YELLOW +"\nTotal Episodes: " + Style.RESET_ALL + totalEpisodeCount+Fore.YELLOW+"\nType: "+Style.RESET_ALL+ animeType + Fore.YELLOW+" \n" + releasedate + "\nStatus: "+Style.RESET_ALL + status)   
 
    return True
-
-   #Retrieving episode count here
 
 #@NOTE: animeName should contain - instead of space
 
@@ -258,20 +268,6 @@ def multiDownload(animeName,start,stop,quality):
       return False
    return True
 
-#COMMANDS
-
-#1. python filteredanime [anime] [startEpisode] [stopEpisode] [quality] //BULK
-#2. python filteredanime [anime] [episode] [quality] //SINGLE EPISODE
-#3. python filteredanime [anime] info // Display anime info
-
-#quality modes 
-
-  # l => low => 360p
-  # m => medium => 480p
-  # h => high => 720p
-
-#Example : python filteredanime gintama 245 250 h => will download anime gintama from episode 245 to 250 in HIGH [720P] 
-
 #Save the downloaded files in their respective folders
 def makeFolderIfNotCreate(animeName):
    if os.path.exists(animeName) == False:
@@ -281,7 +277,7 @@ if __name__ == '__main__':
    argLength = len(sys.argv)-1
    if argLength == 4:
       if ((sys.argv[4] != 'l') and (sys.argv[4] != 'm') and (sys.argv[4] != 'h')) or (sys.argv[2].isdigit() == False) or (sys.argv[3].isdigit() == False) or (int(sys.argv[2]) > int(sys.argv[3])) or (int(sys.argv[2]) == int(sys.argv[3])):
-         print('invalid arguments: check params')
+         print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
       else:
          makeFolderIfNotCreate(sys.argv[1])
          if multiDownload(sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),sys.argv[4]) == False:
@@ -289,7 +285,7 @@ if __name__ == '__main__':
             searchAnimeSuggestions(sys.argv[1]) #search for suggestions
    elif argLength == 3:
       if ((sys.argv[3] != 'l') and (sys.argv[3] != 'm') and (sys.argv[3] != 'h')) or (sys.argv[2].isdigit() == False):
-         print('invalid arguments: check params')
+         print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
       else:
          makeFolderIfNotCreate(sys.argv[1])
          if downloadVideo(sys.argv[1],sys.argv[2],sys.argv[3],None) == False:
@@ -297,9 +293,9 @@ if __name__ == '__main__':
             searchAnimeSuggestions(sys.argv[1])
    elif argLength == 2:
       if(sys.argv[2] != 'info'):
-         print('invalid arguments: check params')
+         print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
       else:
          if getAnimeInfo(sys.argv[1]) == False:
             searchAnimeSuggestions(sys.argv[1])
    else:
-      print('invalid arguments: check params')
+      print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
