@@ -1,22 +1,3 @@
-
-#COMMANDS [KINDLY SEARCH ANIME USING SEO NAME]
-'''
-   TO FIND SEO NAME KINDLY TYPE ANIME NAME AS IS AND THEN IN SUGGESTION 
-   CHECK THE RELATIVE NAME IN PINK COLOR .. THATS THE SEO NAME
-'''
-
-#1. python filteredanime [anime] [startEpisode] [stopEpisode] [quality] //BULK
-#2. python filteredanime [anime] [episode] [quality] //SINGLE EPISODE
-#3. python filteredanime [anime] info // Display anime info
-
-#quality modes 
-
-  # l => low => 360p
-  # m => medium => 480p
-  # h => high => 720p
-
-#Example : python filteredanime gintama 245 250 h => will download anime gintama from episode 245 to 250 in HIGH [720P] 
-
 import sys,re,webbrowser,json,requests,os
 import urllib
 import queue
@@ -36,6 +17,7 @@ class progessBar(tqdm):
 
 #download videos
 def downloadVideo(animeName,episode,quality,queue):
+
    result_name = []
    result_links = []
 
@@ -81,90 +63,47 @@ def downloadVideo(animeName,episode,quality,queue):
 
    fileName = animeName + " "  + str(episode)  
    fullFileName = ' '
-   idx = -1
+   idx = -1   
 
    #Sorting out the Quality Control if one quality is not found
    #Download the quality as to priority
+   #LOW 360P
    if quality == 'l':
-
-      #if 360p download
-      if '\n(360P-mp4)' in result_name:
-         idx = result_name.index('\n(360P-mp4)')
-         fileName += " [360P].mp4"
-         fullFileName = os.path.join(animeName,fileName)
-
-      #if not download other res
-      else:
-
-         #first priority to 480P
-         if '\n(480P-mp4)' in result_name:
-            idx = result_name.index('\n(480P-mp4)')
-            fileName += " [480P].mp4"
-            fullFileName = os.path.join(animeName,fileName)
-
-         #second priority
-         elif '\n(720P-mp4)' in result_name:
-            idx = result_name.index('\n(720P-mp4)')
-            fileName += " [720P].mp4"
-            fullFileName = os.path.join(animeName,fileName)
-            
-         else:
-            print('no quality avail')
-
+      idx,fullFileName = checkIfResolution(animeName,'\n(360P-mp4)',result_name,idx,fileName,fullFileName)
+      #First priority => 480P
+      if idx == None:
+         idx,fullFileName = checkIfResolution(animeName,'\n(480P-mp4)',result_name,idx,fileName,fullFileName)
+         #Second priority => 720P
+         if idx == None:
+            idx,fullFileName = checkIfResolution(animeName,'\n(720P-mp4)',result_name,idx,fileName,fullFileName)
+            if idx == None:
+               print('no quality available')  
+               return False
    #MEDIUM 480P
    elif quality == 'm':
- 
-      #if 480p then download
-      if '\n(480P-mp4)' in result_name:
-         idx = result_name.index('\n(480P-mp4)')
-         fileName += " [480P].mp4"
-         fullFileName = os.path.join(animeName,fileName)
-
-      #if not download other res
-      else:
-
-         #first priority to 720p
-         if '\n(720P-mp4)' in result_name:
-            idx = result_name.index('\n(720P-mp4)')
-            fileName += " [720P].mp4"
-            fullFileName = os.path.join(animeName,fileName)
-
-         #second priority
-         elif '\n(360P-mp4)' in result_name:
-            idx = result_name.index('\n(360P-mp4)')
-            fileName += " [360P].mp4"
-            fullFileName = os.path.join(animeName,fileName)
-            
-         else:
-            print('no quality avail')
-
+      idx,fullFileName = checkIfResolution(animeName,'\n(480P-mp4)',result_name,idx,fileName,fullFileName)
+      #First priority => 720P
+      if idx == None:
+         idx,fullFileName = checkIfResolution(animeName,'\n(720P-mp4)',result_name,idx,fileName,fullFileName)
+         #Second priority => 360P
+         if idx == None:
+            idx,fullFileName = checkIfResolution(animeName,'\n(360P-mp4)',result_name,idx,fileName,fullFileName)
+            if idx == None:
+               print('no quality available')  
+               return False
    #HIGH 720P
-   else:
-
-      #if 720P then download
-      if '\n(720P-mp4)' in result_name:
-         idx = result_name.index('\n(720P-mp4)')
-         fileName += " [720P].mp4"
-         fullFileName = os.path.join(animeName,fileName)
-
-      #if not download other res
-      else:
-
-         #first priority to 480P
-         if '\n(480P-mp4)' in result_name:
-            idx = result_name.index('\n(480P-mp4)')
-            fileName += " [480P].mp4"
-            fullFileName = os.path.join(animeName,fileName)
-
-         #second priority
-         elif '\n(360P-mp4)' in result_name:
-            idx = result_name.index('\n(360P-mp4)')
-            fileName += " [360P].mp4"
-            fullFileName = os.path.join(animeName,fileName)
-            
-         else:
-            print('no quality avail')
-
+   elif quality == 'h':
+      idx,fullFileName = checkIfResolution(animeName,'\n(720P-mp4)',result_name,idx,fileName,fullFileName)
+      #First priority => 480P
+      if idx == None:
+         idx,fullFileName = checkIfResolution(animeName,'\n(480P-mp4)',result_name,idx,fileName,fullFileName)
+         #Second priority => 360P
+         if idx == None:
+            idx,fullFileName = checkIfResolution(animeName,'\n(360P-mp4)',result_name,idx,fileName,fullFileName)
+            if idx == None:
+               print('no quality available')  
+               return False
+   
    #put this in queue to track thread related stuff
    if queue is not None:
       queue.put(result_links[idx])
@@ -174,6 +113,20 @@ def downloadVideo(animeName,episode,quality,queue):
       urllib.request.urlretrieve(result_links[idx],fullFileName,reporthook=t.update_to)   
 
    return True
+
+def checkIfResolution(animeName,qualityString,resultName,idx,fileName,fullFileName):
+   result = []
+   if qualityString in resultName:
+      idx = resultName.index(qualityString)
+      if qualityString == '\n(720P-mp4)':
+         fileName += " [720P].mp4"
+      elif qualityString == '\n(480P-mp4)':
+         fileName += " [480P].mp4"
+      else:
+         fileName += " [360P].mp4"
+      fullFileName = os.path.join(animeName,fileName)
+      return idx,fullFileName
+   return None,None
 
 #Give suggestions based on animename
 def searchAnimeSuggestions(animeName):
@@ -276,15 +229,15 @@ def makeFolderIfNotCreate(animeName):
 if __name__ == '__main__':
    argLength = len(sys.argv)-1
    if argLength == 4:
-      if ((sys.argv[4] != 'l') and (sys.argv[4] != 'm') and (sys.argv[4] != 'h')) or (sys.argv[2].isdigit() == False) or (sys.argv[3].isdigit() == False) or (int(sys.argv[2]) > int(sys.argv[3])) or (int(sys.argv[2]) == int(sys.argv[3])):
+      if ((sys.argv[4] != 'l') and (sys.argv[4] != 'm') and (sys.argv[4] != 'h') and (sys.argv[4] != 'uh')) or (sys.argv[2].isdigit() == False) or (sys.argv[3].isdigit() == False) or (int(sys.argv[2]) > int(sys.argv[3])) or (int(sys.argv[2]) == int(sys.argv[3])):
          print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
       else:
-         makeFolderIfNotCreate(sys.argv[1])
+         makeFolderIfNotCreate(sys.argv[1]) #make directory
          if multiDownload(sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),sys.argv[4]) == False:
             os.rmdir(sys.argv[1]) #remove directory
             searchAnimeSuggestions(sys.argv[1]) #search for suggestions
    elif argLength == 3:
-      if ((sys.argv[3] != 'l') and (sys.argv[3] != 'm') and (sys.argv[3] != 'h')) or (sys.argv[2].isdigit() == False):
+      if ((sys.argv[3] != 'l') and (sys.argv[3] != 'm') and (sys.argv[3] != 'h') and (sys.argv[3] != 'uh')) or (sys.argv[2].isdigit() == False):
          print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
       else:
          makeFolderIfNotCreate(sys.argv[1])
