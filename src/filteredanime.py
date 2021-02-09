@@ -15,12 +15,69 @@ class progessBar(tqdm):
             self.total = tsize
         self.update(b * bsize - self.n)
 
-#download videos
-def downloadVideo(animeName,episode,quality,queue):
+#download video from 4Anime 1080p
+#@NOTE//BUG: Can't download more then 2 at once
+def downloadFrom4Anime(animeName,episode):
+   url = 'https://4anime.to/anime/'+animeName
+   hdr = {'User-Agent': 'Mozilla/5.0'}
+   req = Request(url,headers=hdr)
+   page = None
+   try:
+      page = urlopen(req)
+   except:
+      return False
+   soup = BeautifulSoup(page,'lxml')
+
+   divContainer = soup.findAll('div',{'class':'server row'})
+   innerDivContainer = divContainer[0].findAll('div')
+   ulContainer = innerDivContainer[0].findAll('ul')
+   liContainer = ulContainer[0].findAll('li')
+   
+   episodePageLink = liContainer[episode-1].findAll('a')[0]['href']
+
+   #OPENING A NEW LINK
+
+   url = episodePageLink
+   req = Request(url,headers=hdr)
+   page = None
+   try:
+      page = urlopen(req)
+   except:
+      return False
+   soup = BeautifulSoup(page,'lxml')
+
+   divContainer = soup.findAll('div',{'class':'mirror-footer cl'})
+   scriptContainer = divContainer[0].find_all('script')
+   scriptText = scriptContainer[0].string
+
+   scriptText = scriptText.replace(' ','')
+   start = scriptText.find('href=') + 3
+   end = scriptText.find('">',start)
+   extracted = scriptText[start+4:end-1]
+   
+   return extracted
+ 
+#download videos from gogoanime 360,480,720p
+def downloadFromGogoAnime(animeName,episode,quality,queue):
+
+   if quality == 'uh':
+      
+      url = downloadFrom4Anime(animeName,int(episode))
+      if queue is not None:
+         queue.put(url)
+      
+      fileName = animeName + " "  + str(episode) + " [1080p].mp4"
+      fullFileName = os.path.join(animeName,fileName)
+      
+      #download
+      with progessBar(unit="B",unit_scale=True,miniters=1,desc=url.split('/')[-1]) as t:
+         urllib.request.urlretrieve(url,fullFileName,reporthook=t.update_to)   
+
+      return True
 
    result_name = []
    result_links = []
-
+   
    url = 'https://gogoanime.sh/'+animeName+'-'+'episode-'+str(episode)
    hdr = {'User-Agent': 'Mozilla/5.0'}
    req = Request(url,headers=hdr)
@@ -210,7 +267,7 @@ def multiDownload(animeName,start,stop,quality):
    all_threads = []
    _queue = queue.Queue()
    for i in range(start,stop+1):
-      t = Thread(target=downloadVideo,args=(animeName,i,quality,_queue))
+      t = Thread(target=downloadFromGogoAnime,args=(animeName,i,quality,_queue))
       t.start()
       all_threads.append(t)
 
@@ -241,7 +298,7 @@ if __name__ == '__main__':
          print(Fore.RED + 'invalid arguments: '+ Style.RESET_ALL  +' Check your Parameters')
       else:
          makeFolderIfNotCreate(sys.argv[1])
-         if downloadVideo(sys.argv[1],sys.argv[2],sys.argv[3],None) == False:
+         if downloadFromGogoAnime(sys.argv[1],sys.argv[2],sys.argv[3],None) == False:
             os.rmdir(sys.argv[1]) #remove directory
             searchAnimeSuggestions(sys.argv[1])
    elif argLength == 2:
